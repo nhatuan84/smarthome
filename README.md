@@ -1,0 +1,2 @@
+# smarthome
+smarthome pi project
