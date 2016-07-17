@@ -20,7 +20,7 @@ class SmatHomeDb:
 					   alias           TEXT    NOT NULL,
 					   device          TEXT    NOT NULL,
 					   CONSTRAINT floor_unique UNIQUE(floor)
-					   CONSTRAINT floor_unique UNIQUE(device));''')	
+					   CONSTRAINT device_unique UNIQUE(device));''')	
 			finally:
 				self.mutex.release()
 		else:
@@ -47,12 +47,18 @@ class SmatHomeDb:
 	def selectKey(self, key='*'):
 		try:
 			self.mutex.acquire()
-			cursor = self.conn.execute("SELECT " + key + " from smarthome")	
+			cursor = self.conn.execute("SELECT " + key + " from smarthome group by length(floor)")	
 			return cursor
 		finally:
 			self.mutex.release()
 		return None
-
+	def delete(self, floor):
+		try:
+			self.mutex.acquire()
+			self.conn.execute("delete from smarthome where floor = '%s' " % floor)
+			self.conn.commit()
+		finally:
+			self.mutex.release()
 	def close(self):
 		self.conn.close()
 

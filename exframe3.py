@@ -14,7 +14,7 @@ from dialog import *
 from mqttc import *
 from controller import *
 
-class ExFrame(Frame):
+class ExFrame3(Frame):
 	parent = None
 	tree = None
 	filter = None
@@ -22,52 +22,41 @@ class ExFrame(Frame):
 	done = False
 	donelist = []
 	menu = None
-	map = {}
 	obs = None
-	needupdate = False
-	server = None
 	
 	def __init__(self, parent):
-		Frame.__init__(self, parent.root) 
+		Frame.__init__(self, parent.root)  
 		self.parent = parent
-		self.needupdate = True
 		self.done = False        
 		self.initUI()
-		self.setFilter()
-		initMapping(self.map)
 		self.obs = FrameObs(self.obscallback)
 		self.done = True
-
+		self.setFilter()
+		
+	def getObs(self):
+		return self.obs
+	def obscallback(self, *args, **kwargs):	
+		if(args[0][0]  == 'mqttserver'):
+			self.server = str(args[0][1])
+			modelmqttc = MQTTC(self.server, "$SYS/#")
+			controller = Controller(modelmqttc, self)
+			
 	def updateTree(self, topic, val):
 		#should sleep :)
 		time.sleep(0.44)
-		
-		topic = getMap(self.map, topic)
-		try:			
+		try:
 			if(self.done == True and topic.startswith(self.filter)):
-				
 				try:
 					self.tree.set(str(topic), 1, str(val))				
 				except Exception as e:
+					print '3 - ' + str(e)
 					addNode(self.tree, self.donelist, str(topic))
-					self.tree.set(str(topic), 1, str(val))
-					print '1 - ' + str(e)
+					self.tree.set(topic, 1, str(val))
 					sys.exc_clear()
 		except Exception as e:
-			print '2 - ' + str(e)
+			print '4 - ' + str(e)
 			sys.exc_clear()
 			
-	def getObs(self):
-		return self.obs
-		
-	def obscallback(self, *args, **kwargs):	
-		if(args[0][0]  == 'update'):
-			self.needupdate = True
-		elif(args[0][0]  == 'mqttserver'):
-			self.server = str(args[0][1])
-			modelmqttc = MQTTC(self.server, "#")
-			self.controller = Controller(modelmqttc, self)
-		
 	def setFilter(self, filter = ''):
 		self.filter = filter
 		
@@ -76,40 +65,17 @@ class ExFrame(Frame):
 		item = tree.focus()
 		item_id = self.tree.item(item)['tags'][0]
 
-	def refresh(self):	
-		if(self.needupdate == True):
-			self.done = False
-			self.map.clear()
-			initMapping(self.map)
-			if(self.tree.get_children()):
-				self.donelist = []
-				self.topics = []
-				self.tree.delete(*self.tree.get_children())
-				
-			ins = SmatHomeDb()
-			cursor = ins.selectKey()			
-			for row in cursor:
-				el = Element(row[0], row[1], row[2], row[3])
-				self.topics.append(el)
-			ins.close()	
-			
-			for topic in self.topics:
-				time.sleep(0.01)
-				addNode(self.tree, self.donelist, topic.floor, topic.alias)
-			self.done = True	
-			self.needupdate = False
-		
 	def menupublishcallback(self):
 		if(self.tree.focus()):
 			item = self.tree.focus()
 			item_id = self.tree.item(item)['tags'][0]
 			d = Dialog(self.tree, item_id)
 			self.tree.wait_window(d.top)
-			if(d.getVal() != None):
-				self.controller.publish(item_id, d.getVal().strip())
-				tkMessageBox.showinfo("notification", "published")
 		
 	def menugraphcallback(self):
+		pass
+		
+	def refresh(self):
 		pass
 	
 	def popup(self, event):
@@ -141,8 +107,8 @@ class ExFrame(Frame):
 		self.tree.bind('<Double-Button-1>', self.shownode)  
 		
 		self.menu = Menu(self.tree, tearoff=0)
-		self.menu.add_command(label="Publish", command=self.menupublishcallback)
-		self.menu.add_command(label="Graph", command=self.menugraphcallback)
+		#self.menu.add_command(label="Publish", command=self.menupublishcallback)
+		#self.menu.add_command(label="Graph", command=self.menugraphcallback)
 		
 		self.tree.bind("<Button-3>", self.popup)
 		
